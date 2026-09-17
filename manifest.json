@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Silence Skipper",
+  "version": "1.0.0",
+  "description": "Automatically speeds through silent parts of any video (YouTube, Instagram, etc.) and resumes normal speed when audio returns.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Silence Skipper"
+  },
+  "icons": {
+    "128": "icon.png"
+  }
+}
