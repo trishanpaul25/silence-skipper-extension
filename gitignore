@@ -30,3 +30,8 @@ build/
 *.onnx
 *.tflite
 models/cache/
+
+
+assets/*
+!assets/demo.gif
+!assets/screenshot.png

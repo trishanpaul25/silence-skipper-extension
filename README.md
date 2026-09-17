@@ -20,7 +20,7 @@
 Ever wish your videos would just... get to the point? **Silence Skipper** watches the audio of whatever video you're playing in real time and temporarily speeds up playback during dead air — then drops back to normal the moment someone starts talking again. No re-encoding, no pre-processing, works on live streams, works on any site with a `<video>` tag.
 
 <div align="center">
-<img src="https://via.placeholder.com/720x405.png?text=Demo+GIF+goes+here" alt="Demo GIF placeholder" width="600"/>
+<img src="assets\image.png" alt="Demo GIF placeholder" width="600"/>
 <br/>
 <sub>👆 Replace this with a real demo GIF/screen recording before publishing</sub>
 </div>
