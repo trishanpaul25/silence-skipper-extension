@@ -22,7 +22,6 @@ Ever wish your videos would just... get to the point? **Silence Skipper** watche
 <div align="center">
 <img src="assets\image.png" alt="Demo GIF placeholder" width="600"/>
 <br/>
-<sub>👆 Replace this with a real demo GIF/screen recording before publishing</sub>
 </div>
 
 ---
