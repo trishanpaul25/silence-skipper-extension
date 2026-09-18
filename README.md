@@ -20,8 +20,9 @@
 Ever wish your videos would just... get to the point? **Silence Skipper** watches the audio of whatever video you're playing in real time and temporarily speeds up playback during dead air — then drops back to normal the moment someone starts talking again. No re-encoding, no pre-processing, works on live streams, works on any site with a `<video>` tag.
 
 <div align="center">
-<img src="assets\image.png" alt="Demo GIF placeholder" width="600"/>
+<img src="https://via.placeholder.com/720x405.png?text=Demo+GIF+goes+here" alt="Demo GIF placeholder" width="600"/>
 <br/>
+<sub>👆 Replace this with a real demo GIF/screen recording before publishing</sub>
 </div>
 
 ---
@@ -31,7 +32,7 @@ Ever wish your videos would just... get to the point? **Silence Skipper** watche
 | | |
 |---|---|
 | 🔇 **Silence skipping** | Detects true silence and ramps playback speed up until sound returns |
-| 🎵 **Music-only skipping** *(experimental)* | Heuristically detects stretches of music/ambience with no speech and speeds through those too |
+| 🎵 **Music-only skipping** | ML-powered: uses [Silero VAD](https://github.com/snakers4/silero-vad) running fully on-device to detect stretches of music/ambience with no speech, and speeds through those too |
 | 🎚️ **Fully tunable** | Silence threshold, minimum pause duration, and speed are all adjustable per your taste |
 | 🎙️ **Pitch preservation** | Keeps voices sounding natural even at high playback speeds |
 | 🏷️ **On-screen indicator** | A small badge shows when and why it's currently speeding up |
@@ -52,23 +53,32 @@ YouTube's built-in speed-up feature is YouTube-only and fairly opaque about how 
 ```
 ┌─────────────┐     ┌──────────────────┐     ┌───────────────────┐
 │  <video> tag │ --> │  Web Audio API    │ --> │  Real-time volume  │
-│  on the page │     │  AnalyserNode     │     │  + frequency check │
+│  on the page │     │  AnalyserNode     │     │  (dB) check         │
 └─────────────┘     └──────────────────┘     └─────────┬──────────┘
                                                           │
-                                     ┌────────────────────┼────────────────────┐
-                                     ▼                    ▼                    ▼
-                              🔇 Silence            🎵 Music-only          🗣️ Speech
-                          (below dB threshold)  (heuristic: low energy   (normal audio)
-                                                 + low variability in
-                                                  speech-band frequencies)
-                                     │                    │                    │
-                                     ▼                    ▼                    ▼
-                              Ramp to maxSpeed     Ramp to musicSpeed    Ramp to 1x
+                              ┌───────────────────────────┴───────────────┐
+                              ▼                                           ▼
+                        🔇 Below threshold                         🔊 Audible
+                       → ramp to maxSpeed                                │
+                                                                          ▼
+                                                     ┌────────────────────────────┐
+                                                     │ ScriptProcessorNode taps    │
+                                                     │ raw PCM → downsample 16kHz  │
+                                                     │ → 512-sample frames         │
+                                                     └─────────────┬──────────────┘
+                                                                   │  chrome.runtime message
+                                                                   ▼
+                                              ┌────────────────────────────────────┐
+                                              │ Offscreen document (hidden page)    │
+                                              │ Silero VAD via ONNX Runtime Web     │
+                                              │ → speech probability per frame      │
+                                              └─────────────────┬────────────────────┘
+                                                                 │
+                                              ┌──────────────────┴──────────────────┐
+                                              ▼                                     ▼
+                                     🎵 prob < threshold                  🗣️ prob ≥ threshold
+                                    → ramp to musicSpeed                  → ramp to 1x
 ```
-
-A browser extension can't "look into the future" of a stream, so instead of jump-cutting, it **ramps `playbackRate` up smoothly** during silence/music and back down the instant real speech is detected — which feels almost like a skip but works live, on any video, including streams.
-
-The music-vs-speech distinction is a **heuristic**, not a trained model: it looks at how much audio energy sits in the human speech frequency band (~300Hz–3400Hz) and how much that energy fluctuates over time (speech is choppy and syllable-driven; music/ambience tends to be steadier). It's not perfect — see the [roadmap](#-roadmap) for where this is headed.
 
 ---
 
@@ -100,9 +110,10 @@ Click the extension icon to open the settings popup.
 | Silence threshold | `-45 dB` | Volume below which audio counts as silent |
 | Min. pause before skipping | `350 ms` | How long silence must last before speeding up |
 | Speed during silence | `4x` | Playback rate while silent |
-| Skip music-only parts | `Off` | Enables the experimental speech-vs-music heuristic |
+| Skip music-only parts | `Off` | Enables ML-based speech-vs-music detection (Silero VAD) |
 | Speed during music-only | `2x` | Playback rate during detected music-with-no-speech |
 | Min. duration before skipping (music) | `600 ms` | How long a music-only stretch must last before speeding up |
+| Speech sensitivity | `0.5` | Silero VAD probability threshold — lower = more readily calls audio "speech" |
 | Preserve voice pitch | `On` | Keeps pitch natural at high speeds instead of "chipmunk" audio |
 | Show on-screen speed badge | `On` | Small indicator showing current mode/speed |
 
@@ -110,9 +121,25 @@ Click the extension icon to open the settings popup.
 
 ---
 
+## 🧠 How music-vs-speech detection works (v2)
+
+Earlier versions guessed speech vs. music from raw frequency-band energy and its variability — a rough heuristic. **v2 replaces that with an actual voice-activity-detection model: [Silero VAD](https://github.com/snakers4/silero-vad)**, running fully on-device via **ONNX Runtime Web**.
+
+Because MV3 service workers can't run WebAssembly the way this model needs, the model lives in a hidden **offscreen document** (`offscreen.html`/`offscreen.js`) — a Chrome-extension-only page with DOM access but no visible UI. The pipeline:
+
+1. The content script taps the video's audio with a second `ScriptProcessorNode`, downsamples it from the browser's native sample rate to the 16kHz the model expects, and slices it into 512-sample (32ms) frames.
+2. Each frame is sent via `chrome.runtime.sendMessage` to the offscreen document.
+3. The offscreen document runs the frame through Silero VAD (maintaining the model's recurrent state per video) and returns a speech probability.
+4. The content script compares that probability against your "Speech sensitivity" setting to decide whether to treat the current audio as speech or music.
+
+No audio ever leaves the browser — inference is 100% local.
+
+---
+
 ## 🗺️ Roadmap
 
-- [ ] Replace the frequency-heuristic music/speech detector with a lightweight **ML model** (e.g. [Silero VAD](https://github.com/snakers4/silero-vad) or a custom model run via **ONNX Runtime Web** / **TensorFlow.js**) for far more accurate speech detection
+- [x] Replace the frequency-heuristic music/speech detector with a real ML model (Silero VAD via ONNX Runtime Web)
+- [ ] Migrate from the deprecated `ScriptProcessorNode` to an `AudioWorklet` for audio capture
 - [ ] Per-site custom presets (e.g. different defaults for YouTube vs. lecture platforms)
 - [ ] Skip visual indicator styling options
 - [ ] Keyboard shortcut to toggle on/off without opening the popup
@@ -123,15 +150,16 @@ Click the extension icon to open the settings popup.
 
 ## ⚠️ Known limitations
 
-- The music-vs-speech heuristic can misfire on unusual audio (e.g. rap over a beat, very flat/monotone speech, or spoken word with heavy background music).
+- `ScriptProcessorNode` is deprecated (though still supported) — an `AudioWorklet` rewrite is on the roadmap.
 - Sites that already attach their own `AudioContext` to the `<video>` element may block the analyser from attaching — you'll see a warning in the DevTools console if this happens.
+- The offscreen document is created lazily the first time music-skip is used on a page; expect a brief delay (model load) before it kicks in.
 - Ad breaks are not currently distinguished from regular content.
 
 ---
 
 ## 🤝 Contributing
 
-Issues and PRs are welcome. If you're tackling the ML roadmap item, please open an issue first to discuss the approach (model choice, bundling strategy, size budget) before submitting a large PR.
+Issues and PRs are welcome — see [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md) for attribution of the bundled model and runtime.
 
 ---
 

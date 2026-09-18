@@ -5,7 +5,8 @@ const DEFAULTS = {
   maxSpeed: 4,
   skipMusicOnly: false,
   musicSpeed: 2,
-  minMusicMs: 600,
+  minMusicMs: 900,
+  vadSpeechThreshold: 0.35,
   preservePitch: true,
   showIndicator: true
 };
@@ -23,6 +24,8 @@ const els = {
   musicSpeedVal: document.getElementById("musicSpeedVal"),
   minMusic: document.getElementById("minMusic"),
   minMusicVal: document.getElementById("minMusicVal"),
+  vadThreshold: document.getElementById("vadThreshold"),
+  vadThresholdVal: document.getElementById("vadThresholdVal"),
   preservePitch: document.getElementById("preservePitch"),
   showIndicator: document.getElementById("showIndicator")
 };
@@ -40,6 +43,8 @@ function render(s) {
   els.musicSpeedVal.textContent = `${s.musicSpeed}x`;
   els.minMusic.value = s.minMusicMs;
   els.minMusicVal.textContent = `${s.minMusicMs} ms`;
+  els.vadThreshold.value = s.vadSpeechThreshold;
+  els.vadThresholdVal.textContent = s.vadSpeechThreshold.toFixed(2);
   els.preservePitch.checked = s.preservePitch;
   els.showIndicator.checked = s.showIndicator;
 }
@@ -67,3 +72,4 @@ bindRange(els.minSilence, els.minSilenceVal, "minSilenceMs", (v) => `${v} ms`);
 bindRange(els.maxSpeed, els.maxSpeedVal, "maxSpeed", (v) => `${v}x`);
 bindRange(els.musicSpeed, els.musicSpeedVal, "musicSpeed", (v) => `${v}x`);
 bindRange(els.minMusic, els.minMusicVal, "minMusicMs", (v) => `${v} ms`);
+bindRange(els.vadThreshold, els.vadThresholdVal, "vadSpeechThreshold", (v) => v.toFixed(2));

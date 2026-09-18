@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8" /></head>
+<body>
+  <!-- No UI: this page exists purely to give the VAD model a DOM-capable
+       context to run in, since MV3 service workers can't use WebAssembly
+       the way this build of onnxruntime-web needs. -->
+  <script src="lib/ort/ort.wasm.min.js"></script>
+  <script src="offscreen.js"></script>
+</body>
+</html>

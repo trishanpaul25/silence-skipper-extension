@@ -1,0 +1,32 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Node (in case you add build tooling / an ML model pipeline later)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# Build output
+dist/
+build/
+*.crx
+*.pem
+*.zip
+
+# Env / secrets
+.env
+.env.local
+
+# ML model artifacts (if/when the ONNX/TF.js model lands)
+*.onnx
+*.tflite
+models/cache/
